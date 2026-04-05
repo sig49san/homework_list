@@ -41,7 +41,7 @@ if st.button("Fetch Score Data", key="fetch_data"):
                 df = fetch_data(iidx_id)
                 if df.empty:
                     errors.append(
-                        f"ID: {iidx_id} は存在しない可能性があります。"
+                        f"ID: {iidx_id} は存在しない可能性があります。問題が続く場合はデバッグ用に環境変数 IIDX_DEBUG_SAVE_HTML=1 をセットして再実行し、生成された iidx_debug_html/ 以下のファイルを確認してください。"
                     )
                 else:
                     dfs[key] = df
