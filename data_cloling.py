@@ -4,11 +4,38 @@ IIDX DataをClolingするためのモジュール
 
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+
+
+def _get_response_with_fallback(
+    url: str, headers: dict, timeout: int = 10
+) -> Optional[requests.Response]:
+    """Try to fetch using requests first; on 403/exception try cloudscraper as a fallback.
+
+    Returns requests.Response-like object or None on persistent failure.
+    """
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+    except requests.RequestException:
+        resp = None
+
+    # If requests succeeded but returned 403 (or other non-200), try cloudscraper
+    if resp is None or resp.status_code == 403:
+        try:
+            # import locally to keep dependency optional until we add to requirements
+            import cloudscraper
+
+            scraper = cloudscraper.create_scraper()
+            # cloudscraper returns a requests.Response-compatible object
+            resp = scraper.get(url, timeout=timeout)
+        except Exception:
+            return resp
+
+    return resp
 
 
 def crawl_iidx_data(iidx_id: str) -> List[List[str]]:
@@ -32,10 +59,9 @@ def crawl_iidx_data(iidx_id: str) -> List[List[str]]:
 
     for i in range(1, 13):
         url = f"{base_url}/{i}"
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-        except requests.RequestException as e:
-            logging.warning("Request failed for %s: %s", url, e)
+        response = _get_response_with_fallback(url, headers, timeout=10)
+        if response is None:
+            logging.warning("Request failed for %s: no response", url)
             continue
 
         if response.status_code != 200:
